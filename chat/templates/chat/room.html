@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Room</title>
+</head>
+<body>
+    <textarea id="chat-log" cols="100" rows="20"></textarea><br/>
+    <input id="chat-message-input" type="text" size="100"/><br/>
+    <input id="chat-message-submit" type="button" value="发送"/>
+</body>
+<script>
+    var roomName = {{ room_name_json }};
+    var id = prompt("身份确认--(1) 客户  (2) 客服");
+    var iden;
+    if (id == "1") {
+        iden = "客户";
+    }else {
+        iden = "客服"
+    }
+    var chatSocket = new WebSocket(
+        'ws://' + window.location.host +
+            '/ws/chat/' + roomName + '/');
+
+    chatSocket.onmessage = function(e) {
+        var data = JSON.parse(e.data);
+        var message = data['message'];
+        var me = message.slice();
+        if (message.slice(0,2) != iden) {
+            var a = new Array(96).join(' ');
+            message = message.slice(4) + ' :' + message.slice(0,2);
+            message = a.slice(0, 96-message.length) + message;
+        }
+        document.querySelector('#chat-log').value += (message + '\n');
+        message = me;
+        if (iden == "客服" && message.slice(0,2) == "客户") {
+            chatSocket.send(JSON.stringify({
+                'message': iden + message.slice(4)
+            }));
+        }
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error("Chat socket closed unexpectedly");
+    };
+
+    document.querySelector('#chat-message-input').focus();
+    document.querySelector('#chat-message-input').onkeyup = function(e) {
+        if (e.keyCode === 13) {
+           document.querySelector('#chat-message-submit').click();
+        }
+    };
+
+    document.querySelector('#chat-message-submit').onclick = function(e) {
+        var messageInputDom = document.querySelector('#chat-message-input')
+        var message = messageInputDom.value;
+        chatSocket.send(JSON.stringify({
+            'message': iden + message
+        }));
+        messageInputDom.value = '';
+    };
+</script>
+</html>
